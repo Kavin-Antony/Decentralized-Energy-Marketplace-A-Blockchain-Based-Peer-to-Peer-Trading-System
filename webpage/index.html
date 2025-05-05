@@ -75,7 +75,7 @@
         account = accounts[0];
         document.getElementById("account").textContent = account;
 
-        const res = await fetch("http://localhost:3000/EnergyTrade.json");
+        const res = await fetch("http://192.168.246.51:3000/EnergyTrade.json");
         const artifact = await res.json();
         contractABI = artifact.abi;
 

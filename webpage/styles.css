@@ -1,0 +1,112 @@
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+  }
+  
+  h2 {
+    color: #4CAF50;
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  #account {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+  
+  /* Container */
+  .container {
+    width: 80%;
+    max-width: 1000px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Sections */
+  .section {
+    margin-bottom: 30px;
+  }
+  
+  .section h3 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+  
+  /* Inputs and Buttons */
+  input, button {
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    width: 100%;
+  }
+  
+  input:focus, button:focus {
+    outline: none;
+    border-color: #4CAF50;
+  }
+  
+  button {
+    background-color: #4CAF50;
+    color: #fff;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #45a049;
+  }
+  
+  /* Trade List */
+  .trade-list {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .trade-list li {
+    background-color: #f1f1f1;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .trade-list li hr {
+    border: 0;
+    border-top: 1px solid #ddd;
+    margin: 10px 0;
+  }
+  
+  .trade-list li span {
+    font-weight: bold;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    body {
+      padding: 10px;
+    }
+  
+    .container {
+      width: 100%;
+    }
+  
+    input, button {
+      width: 100%;
+    }
+  }

@@ -1,0 +1,7 @@
+// Node Version : 16.20.2
+{
+  "dependencies": {
+    "@truffle/contract": "^4.6.31",
+    "web3": "^1.10.0"
+  }
+}

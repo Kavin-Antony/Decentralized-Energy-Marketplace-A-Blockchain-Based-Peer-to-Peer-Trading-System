@@ -3,8 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-app.use(cors()); // Enable CORS
-app.use(express.static('../build/contracts')); // Adjust if ABI is somewhere else
+app.use(cors()); 
+app.use(express.static('../build/contracts')); 
 
 const PORT = 3000;
 app.listen(PORT, () => {

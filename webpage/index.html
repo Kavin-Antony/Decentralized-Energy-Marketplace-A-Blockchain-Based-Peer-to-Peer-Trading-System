@@ -9,54 +9,49 @@
 </head>
 <body>
   <h2>🔗 Energy Trade DApp</h2>
-  <p style="text-align: center;font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">Connected Account: <span id="account"></span></p>
+  <p style="text-align: center;font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    Connected Account: <span id="account"></span>
+  </p>
 
-  <!-- Create Trade Section -->
   <div class="section">
-    <h3>➕ Create Trade</h3>
+    <h3> Create Trade</h3>
     <input id="energyAmount" placeholder="Energy Amount (in kWh)" />
     <input id="price" placeholder="Price in Ether" />
     <button onclick="createTrade()">Create</button>
   </div>
 
-  <!-- Accept Trade Section -->
   <div class="section">
-    <h3>🛒 Accept Trade</h3>
+    <h3> Accept Trade</h3>
     <input id="acceptId" placeholder="Trade ID" />
     <button onclick="acceptTrade()">Accept</button>
   </div>
 
-  <!-- Complete Trade Section -->
   <div class="section">
-    <h3>✅ Complete Trade</h3>
+    <h3> Complete Trade</h3>
     <input id="completeId" placeholder="Trade ID" />
     <button onclick="completeTrade()">Complete</button>
   </div>
 
-  <!-- Dispute Trade Section -->
   <div class="section">
-    <h3>⚠️ Raise Dispute</h3>
+    <h3> Raise Dispute</h3>
     <input id="disputeId" placeholder="Trade ID" />
     <button onclick="raiseDispute()">Dispute</button>
   </div>
 
-  <!-- Timeout Trade Section -->
   <div class="section">
-    <h3>⏱ Timeout Trade</h3>
+    <h3> Timeout Trade</h3>
     <input id="timeoutId" placeholder="Trade ID" />
     <button onclick="timeoutTrade()">Timeout</button>
   </div>
 
-  <!-- Reputation Section -->
   <div class="section">
-    <h3>⭐ Your Reputation</h3>
+    <h3> Your Reputation</h3>
     <button onclick="getReputation()">Check</button>
     <p id="repResult"></p>
   </div>
 
-  <!-- All Trades Section -->
   <div class="section">
-    <h3>📋 All Trades</h3>
+    <h3> All Trades</h3>
     <button onclick="loadTrades()">🔄 Check All Trades</button>
     <ul id="tradeList" class="trade-list"></ul>
   </div>
@@ -64,7 +59,7 @@
   <script>
     let account;
     let energyTrade;
-    const contractAddress = "0x68ce8DDbe2E4860F4206255a52FcC2789C2530F8";
+    const contractAddress = "0xf4B359C73fA47a63f210a5a6850fEa822F19dBb5";
     let contractABI;
 
     window.addEventListener('load', async () => {
@@ -75,7 +70,8 @@
         account = accounts[0];
         document.getElementById("account").textContent = account;
 
-        const res = await fetch("http://192.168.246.51:3000/EnergyTrade.json");
+        // const res = await fetch("http://192.168.246.51:3000/EnergyTrade.json");
+        const res = await fetch("http://localhost:3000/EnergyTrade.json");
         const artifact = await res.json();
         contractABI = artifact.abi;
 
@@ -86,51 +82,77 @@
       }
     });
 
+    function getReadableError(error) {
+      const defaultMsg = "Unexpected error occurred.";
+      try {
+        if (error && error.message) {
+          if (error.message.includes("revert")) {
+            const reason = error.message.match(/revert (.*?)"/);
+            return reason ? reason[1] : "Transaction reverted by EVM.";
+          } else if (error.message.includes("User denied")) {
+            return "Transaction was rejected by the user.";
+          }
+        }
+        return error.message || defaultMsg;
+      } catch {
+        return defaultMsg;
+      }
+    }
+
     async function createTrade() {
       const energy = document.getElementById("energyAmount").value;
       const price = document.getElementById("price").value;
-      if (!energy || !price || isNaN(price)) return alert("Enter valid values");
+      if (!energy || !price || isNaN(price)) {
+        return alert("Enter valid energy and price values.");
+      }
 
       try {
         await energyTrade.methods.createTrade(energy, Web3.utils.toWei(price, 'ether'))
           .send({ from: account });
         loadTrades();
       } catch (err) {
-        alert("Error: " + err.message);
+        console.error(err);
+        alert("Error creating trade: " + getReadableError(err));
       }
     }
 
     async function acceptTrade() {
       const id = document.getElementById("acceptId").value;
       const trades = await energyTrade.methods.getAllTrades().call();
-      if (isNaN(id) || id < 0 || id >= trades.length) return alert("Invalid Trade ID");
+      if (isNaN(id) || id < 0 || id >= trades.length) {
+        return alert("Invalid Trade ID");
+      }
 
-      const tradeDetails = trades[id];
+      const trade = trades[id];
       try {
         await energyTrade.methods.acceptTrade(id).send({
           from: account,
-          value: tradeDetails.price
+          value: trade.price
         });
         loadTrades();
       } catch (err) {
-        alert("Error: " + err.message);
+        console.error(err);
+        alert("Error accepting trade: " + getReadableError(err));
       }
     }
 
     async function completeTrade() {
       const id = document.getElementById("completeId").value;
       if (!id) return alert("Enter Trade ID");
+
       try {
         await energyTrade.methods.completeTrade(id).send({ from: account });
         loadTrades();
       } catch (err) {
-        alert("Error: " + err.message);
+        console.error(err);
+        alert("Error completing trade: " + getReadableError(err));
       }
     }
 
     async function raiseDispute() {
       const id = document.getElementById("disputeId").value;
       if (!id) return alert("Enter Trade ID");
+
       try {
         await energyTrade.methods.raiseDispute(id).send({
           from: account,
@@ -138,18 +160,21 @@
         });
         loadTrades();
       } catch (err) {
-        alert("Error: " + err.message);
+        console.error(err);
+        alert("Error raising dispute: " + getReadableError(err));
       }
     }
 
     async function timeoutTrade() {
       const id = document.getElementById("timeoutId").value;
       if (!id) return alert("Enter Trade ID");
+
       try {
         await energyTrade.methods.timeoutTrade(id).send({ from: account });
         loadTrades();
       } catch (err) {
-        alert("Error: " + err.message);
+        console.error(err);
+        alert("Error timing out trade: " + getReadableError(err));
       }
     }
 
@@ -158,25 +183,31 @@
         const rep = await energyTrade.methods.reputation(account).call();
         document.getElementById("repResult").textContent = `Reputation: ${rep}`;
       } catch (err) {
-        alert("Error fetching reputation: " + err.message);
+        console.error(err);
+        alert("Error fetching reputation: " + getReadableError(err));
       }
     }
 
     async function loadTrades() {
-      const trades = await energyTrade.methods.getAllTrades().call();
-      const list = document.getElementById("tradeList");
-      list.innerHTML = '';
-      trades.forEach((t, i) => {
-        const item = document.createElement("li");
-        item.innerHTML = `
-          <strong>ID ${i}</strong>: ${t.energyAmount} kWh @ ${Web3.utils.fromWei(t.price)} ETH<br/>
-          Seller: ${t.seller}<br/>
-          Buyer: ${t.buyer !== '0x0000000000000000000000000000000000000000' ? t.buyer : 'None'}<br/>
-          Accepted: ${t.isAccepted}, Completed: ${t.isCompleted}, Disputed: ${t.isDisputed}, Cancelled: ${t.isCancelled}
-          <hr/>
-        `;
-        list.appendChild(item);
-      });
+      try {
+        const trades = await energyTrade.methods.getAllTrades().call();
+        const list = document.getElementById("tradeList");
+        list.innerHTML = '';
+        trades.forEach((t, i) => {
+          const item = document.createElement("li");
+          item.innerHTML = `
+            <strong>ID ${i}</strong>: ${t.energyAmount} kWh @ ${Web3.utils.fromWei(t.price)} ETH<br/>
+            Seller: ${t.seller}<br/>
+            Buyer: ${t.buyer !== '0x0000000000000000000000000000000000000000' ? t.buyer : 'None'}<br/>
+            Accepted: ${t.isAccepted}, Completed: ${t.isCompleted}, Disputed: ${t.isDisputed}, Cancelled: ${t.isCancelled}
+            <hr/>
+          `;
+          list.appendChild(item);
+        });
+      } catch (err) {
+        console.error("Error loading trades: ", err);
+        alert("Failed to load trades.");
+      }
     }
   </script>
 

@@ -13,7 +13,7 @@ contract EnergyTrade is ReentrancyGuard {
         address buyer;
         uint256 energyAmount; // in kWh
         uint256 price; // in wei
-        uint256 timestamp; // creation time
+        uint256 timestamp;
         bool isAccepted;
         bool isCompleted;
         bool isCancelled;
@@ -22,6 +22,7 @@ contract EnergyTrade is ReentrancyGuard {
 
     Trade[] public trades;
     mapping(address => uint256) public reputation;
+    mapping(uint => address) public disputeDepositor;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only admin can perform this action");
@@ -69,24 +70,28 @@ contract EnergyTrade is ReentrancyGuard {
         Trade storage trade = trades[_tradeId];
         require(!trade.isCancelled, "Trade is cancelled");
         require(!trade.isAccepted, "Trade already accepted");
-        require(msg.value == trade.price, "Incorrect payment");
+        require(msg.value == trade.price, "Incorrect payment amount");
         require(msg.sender != trade.seller, "Seller cannot be buyer");
 
         trade.buyer = msg.sender;
         trade.isAccepted = true;
         trade.timestamp = block.timestamp;
 
-        emit TradeAccepted(_tradeId, msg.sender); 
+        emit TradeAccepted(_tradeId, msg.sender);
     }
 
     function completeTrade(uint _tradeId) external validTradeId(_tradeId) nonReentrant {
         Trade storage trade = trades[_tradeId];
-        require(trade.isAccepted, "Trade not accepted yet");
+        require(trade.isAccepted, "Trade not accepted");
         require(!trade.isCompleted, "Trade already completed");
+        require(!trade.isDisputed, "Trade is disputed");
         require(msg.sender == trade.buyer, "Only buyer can confirm completion");
 
         trade.isCompleted = true;
-        payable(trade.seller).transfer(trade.price);
+
+        (bool sent, ) = trade.seller.call{value: trade.price}("");
+        require(sent, "Payment to seller failed");
+
         reputation[trade.seller]++;
         reputation[trade.buyer]++;
 
@@ -96,40 +101,52 @@ contract EnergyTrade is ReentrancyGuard {
     function cancelTrade(uint _tradeId) external validTradeId(_tradeId) {
         Trade storage trade = trades[_tradeId];
         require(!trade.isAccepted, "Cannot cancel after acceptance");
+        require(!trade.isCompleted, "Trade already completed");
         require(msg.sender == trade.seller, "Only seller can cancel");
 
         trade.isCancelled = true;
+
         emit TradeCancelled(_tradeId);
     }
 
-    function raiseDispute(uint _tradeId) external payable validTradeId(_tradeId) {
+    function raiseDispute(uint _tradeId) external payable validTradeId(_tradeId) nonReentrant {
         Trade storage trade = trades[_tradeId];
-        require(trade.isAccepted && !trade.isCompleted, "Only ongoing trades can be disputed");
-        require(msg.sender == trade.seller || msg.sender == trade.buyer, "Only participants can raise disputes");
-        require(!trade.isDisputed, "Already disputed");
-        require(msg.value == disputeDeposit, "Dispute requires deposit");
+        require(trade.isAccepted, "Trade not accepted");
+        require(!trade.isCompleted, "Trade already completed");
+        require(!trade.isDisputed, "Trade already disputed");
+        require(msg.sender == trade.seller || msg.sender == trade.buyer, "Only participants can dispute");
+        require(msg.value == disputeDeposit, "Incorrect dispute deposit");
 
         trade.isDisputed = true;
+        disputeDepositor[_tradeId] = msg.sender;
+
         emit TradeDisputed(_tradeId);
     }
 
     function resolveDispute(uint _tradeId, bool favorSeller) external onlyOwner validTradeId(_tradeId) nonReentrant {
         Trade storage trade = trades[_tradeId];
-        require(trade.isDisputed, "No dispute to resolve");
+        require(trade.isDisputed, "No active dispute");
         require(!trade.isCompleted, "Trade already completed");
 
         trade.isDisputed = false;
         trade.isCompleted = true;
 
         if (favorSeller) {
-            payable(trade.seller).transfer(trade.price);
+            (bool sentSeller, ) = trade.seller.call{value: trade.price}("");
+            require(sentSeller, "Transfer to seller failed");
             reputation[trade.seller]++;
         } else {
-            payable(trade.buyer).transfer(trade.price);
+            (bool sentBuyer, ) = trade.buyer.call{value: trade.price}("");
+            require(sentBuyer, "Transfer to buyer failed");
             reputation[trade.buyer]++;
         }
 
-        payable(msg.sender).transfer(disputeDeposit); // Refund admin (or could burn deposit if needed)
+        address depositor = disputeDepositor[_tradeId];
+        require(depositor != address(0), "No deposit recorded");
+
+        (bool refunded, ) = depositor.call{value: disputeDeposit}("");
+        require(refunded, "Refund of dispute deposit failed");
+
         emit DisputeResolved(_tradeId, favorSeller);
     }
 
@@ -137,14 +154,18 @@ contract EnergyTrade is ReentrancyGuard {
         Trade storage trade = trades[_tradeId];
         require(trade.isAccepted, "Trade not accepted");
         require(!trade.isCompleted, "Trade already completed");
-        require(!trade.isDisputed, "Cannot timeout disputed trade");
+        require(!trade.isDisputed, "Trade is in dispute");
         require(block.timestamp > trade.timestamp + timeoutPeriod, "Timeout period not reached");
 
         trade.isCompleted = true;
 
-        payable(trade.buyer).transfer(trade.price);
+        (bool refunded, ) = trade.buyer.call{value: trade.price}("");
+        require(refunded, "Refund to buyer failed");
+
         emit TradeTimedOut(_tradeId, trade.buyer);
     }
+
+    // View and Admin Functions
 
     function getAllTrades() external view returns (Trade[] memory) {
         return trades;
